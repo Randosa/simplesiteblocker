@@ -44,7 +44,6 @@ python "C:\ProgramData\CodexSiteBlocker\site_blocker.py" unlock --minutes 30 --r
 
 The exception expires automatically, cannot extend beyond the scheduled end time, and records its stated reason locally.
 
-On the computer for which SSB was first prepared, the user may instead ask in the original Codex task for this temporary command to be invoked.
 
 ## Remove SSB
 
