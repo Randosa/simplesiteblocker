@@ -94,4 +94,3 @@ python -m unittest discover -s tests -v
 ```
 
 SSB is distributed under the MIT License.
-
