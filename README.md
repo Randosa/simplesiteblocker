@@ -4,6 +4,17 @@ SSB (Simple Site Blocker) is a simple, locally run website blocker for Windows. 
 
 SSB has no account, cloud service, analytics, advertisements, or third-party Python packages. Its configuration and logs remain on the computer.
 
+## Version 1.0.1
+
+Saving now runs in the background with a small animated progress bar and status
+messages. Editing and closing are paused until the save finishes, preventing
+duplicate saves or interrupted updates. Errors appear inside SSB.
+
+PowerShell and other helper commands run without console windows. Website rules
+are processed in batches, including large lists. The normal Windows administrator
+approval prompt still appears when needed. Saving from the installed copy is also
+supported.
+
 ## Requirements
 
 - Windows 10 or Windows 11

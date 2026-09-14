@@ -26,18 +26,21 @@ import json
 import logging
 import os
 from pathlib import Path
+import queue
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+from typing import Callable
 from urllib.parse import urlsplit
 import uuid
 import xml.etree.ElementTree as ET
 
 
 APP_NAME = "SSB (Simple Site Blocker)"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 TASK_NAME = r"\Simple Site Blocker\Reconcile"
 LEGACY_TASK_NAME = r"\Scheduled Site Blocker\Reconcile"
 FIREWALL_GROUP = "Simple Site Blocker"
@@ -313,7 +316,10 @@ def load_config() -> dict:
 
 
 def run(command: list[str], *, check: bool = True) -> subprocess.CompletedProcess:
-    result = subprocess.run(command, text=True, capture_output=True, check=False)
+    result = subprocess.run(
+        command, text=True, capture_output=True, check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+    )
     if check and result.returncode:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(detail or f"Command failed with exit code {result.returncode}.")
@@ -325,10 +331,17 @@ def ps_quote(value: str) -> str:
 
 
 def powershell(script: str, *, check: bool = True) -> subprocess.CompletedProcess:
-    return run(
-        [POWERSHELL, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
-        check=check,
-    )
+    # A file avoids Windows' command-line length limit for large website lists.
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8-sig", delete=False, suffix=".ps1") as handle:
+        handle.write(script)
+        script_path = Path(handle.name)
+    try:
+        return run(
+            [POWERSHELL, "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
+            check=check,
+        )
+    finally:
+        script_path.unlink(missing_ok=True)
 
 
 def keyword_id(domain: str) -> str:
@@ -336,25 +349,29 @@ def keyword_id(domain: str) -> str:
 
 
 def remove_firewall_rules_only() -> None:
+    scripts = []
     for group_name in (FIREWALL_GROUP, LEGACY_FIREWALL_GROUP):
         group = ps_quote(group_name)
-        powershell(
+        scripts.append(
             f"Get-NetFirewallRule -Group {group} -ErrorAction SilentlyContinue | "
-            "Remove-NetFirewallRule -ErrorAction SilentlyContinue",
-            check=False,
+            "Remove-NetFirewallRule -ErrorAction SilentlyContinue"
         )
+    powershell("\n".join(scripts), check=False)
 
 
 def remove_dynamic_keywords(domains: list[str]) -> None:
-    for domain in domains:
-        powershell(
+    scripts = []
+    for domain in dict.fromkeys(domains):
+        scripts.append(
             f"Remove-NetFirewallDynamicKeywordAddress -Id {ps_quote(keyword_id(domain))} "
-            "-ErrorAction SilentlyContinue",
-            check=False,
+            "-ErrorAction SilentlyContinue"
         )
+    if scripts:
+        powershell("\n".join(scripts), check=False)
 
 
 def create_firewall_rules(config: dict) -> None:
+    scripts = []
     for domain in domain_patterns(config):
         ident = keyword_id(domain)
         display = f"SSB: {domain}"
@@ -369,7 +386,9 @@ def create_firewall_rules(config: dict) -> None:
             "-Action Block -Direction Outbound -RemoteDynamicKeywordAddresses $id "
             "-Enabled True -ErrorAction Stop | Out-Null }"
         )
-        powershell(script)
+        scripts.append(script)
+    if scripts:
+        powershell("$ErrorActionPreference = 'Stop'\n" + "\n".join(scripts))
 
 
 def firewall_rule_count() -> int | None:
@@ -600,7 +619,9 @@ def installation_complete() -> bool:
     return bool((load_json(INSTALL_STATE_PATH, {}) or {}).get("installation_complete"))
 
 
-def install_or_update(config: dict) -> None:
+def install_or_update(config: dict, progress: Callable[[str], None] | None = None) -> None:
+    report = progress or (lambda _message: None)
+    report("Preparing changes...")
     require_windows_admin()
     config = migrate_config(config)
     source = Path(__file__).resolve()
@@ -625,16 +646,16 @@ def install_or_update(config: dict) -> None:
     if previous_network is None:
         previous_network = defender_network_protection()
 
-    if previous_entries:
-        set_browser_policy_entries(False, previous_entries)
-    remove_firewall_rules_only()
-    if previous_config:
-        remove_dynamic_keywords(domain_patterns(previous_config))
-    remove_dynamic_keywords(LEGACY_DEFAULT_DOMAINS)
-
     entries: list[dict] = []
     try:
-        shutil.copy2(source, INSTALLED_SCRIPT)
+        report("Updating website blocks...")
+        if previous_entries:
+            set_browser_policy_entries(False, previous_entries)
+        remove_firewall_rules_only()
+        old_domains = domain_patterns(previous_config) if previous_config else []
+        remove_dynamic_keywords(old_domains + LEGACY_DEFAULT_DOMAINS)
+        if source != INSTALLED_SCRIPT.resolve():
+            shutil.copy2(source, INSTALLED_SCRIPT)
         entries = prepare_browser_policy_entries(config)
         install_state = {
             "app_version": APP_VERSION,
@@ -647,10 +668,13 @@ def install_or_update(config: dict) -> None:
         save_json(INSTALL_STATE_PATH, install_state)
         if defender_network_protection() != 1:
             set_defender_network_protection("Enabled")
+        report("Updating the schedule...")
         create_task(pythonw, config)
         install_state["installation_complete"] = True
         save_json(INSTALL_STATE_PATH, install_state)
+        report("Applying the current blocking state...")
         enforce()
+        report("Finishing...")
         secure_install_directory()
         delete_task(LEGACY_TASK_NAME)
         legacy_script = INSTALL_DIR / "blocker.py"
@@ -659,6 +683,7 @@ def install_or_update(config: dict) -> None:
         rollback_script.unlink(missing_ok=True)
         logging.info("Installed or updated SSB %s using %s", APP_VERSION, pythonw)
     except Exception:
+        report("Save failed; restoring previous settings...")
         logging.exception("Installation or update failed")
         delete_task(TASK_NAME)
         set_browser_policy_entries(False, entries)
@@ -758,6 +783,11 @@ class SSBWindow:
         self.start_var = tk.StringVar(value=self.current_config["block_start"])
         self.end_var = tk.StringVar(value=self.current_config["block_end"])
         self.status_var = tk.StringVar()
+        self.progress_var = tk.StringVar()
+        self._busy = False
+        self._events: queue.Queue = queue.Queue()
+        self._disabled_controls = []
+        self.root.protocol("WM_DELETE_WINDOW", self._close)
         self._build()
         self._refresh_table()
         self._refresh_status()
@@ -809,7 +839,72 @@ class SSBWindow:
         ttk.Button(actions, text="Instructions", command=self._show_help).pack(side="left", padx=8)
         if installation_complete():
             ttk.Button(actions, text="Uninstall SSB", command=self._uninstall).pack(side="left")
-        ttk.Button(actions, text="Close", command=self.root.destroy).pack(side="right")
+        ttk.Button(actions, text="Close", command=self._close).pack(side="right")
+        self.progress_frame = ttk.Frame(outer)
+        ttk.Label(self.progress_frame, textvariable=self.progress_var).pack(anchor="w")
+        self.progress_bar = ttk.Progressbar(self.progress_frame, mode="indeterminate")
+        self.progress_bar.pack(fill="x", pady=(4, 0))
+
+    def _close(self) -> None:
+        if self._busy:
+            self.root.bell()
+            return
+        self.root.destroy()
+
+    def _set_busy(self, busy: bool) -> None:
+        self._busy = busy
+        if busy:
+            self._disabled_controls = []
+            def disable(widget):
+                for child in widget.winfo_children():
+                    if isinstance(child, (self.ttk.Button, self.ttk.Entry, self.ttk.Checkbutton, self.ttk.Treeview)):
+                        self._disabled_controls.append((child, child.instate(["disabled"])))
+                        child.state(["disabled"])
+                    disable(child)
+            disable(self.root)
+            self.progress_var.set("Preparing changes...")
+            self.progress_frame.pack(fill="x", pady=(12, 0))
+            self.progress_bar.start(12)
+        else:
+            self.progress_bar.stop()
+            self.progress_frame.pack_forget()
+            for widget, was_disabled in self._disabled_controls:
+                if not was_disabled:
+                    widget.state(["!disabled"])
+            self._disabled_controls = []
+
+    def _save_worker(self, proposed: dict) -> None:
+        # Only the main Tk thread may touch widgets or show dialogs.
+        try:
+            install_or_update(proposed, progress=lambda message: self._events.put(("progress", message)))
+        except Exception as exc:
+            logging.exception("SSB could not save")
+            self._events.put(("error", str(exc)))
+        else:
+            self._events.put(("done", proposed))
+
+    def _poll_save(self) -> None:
+        from tkinter import messagebox
+
+        while True:
+            try:
+                kind, value = self._events.get_nowait()
+            except queue.Empty:
+                break
+            if kind == "progress":
+                self.progress_var.set(value)
+                continue
+            self._set_busy(False)
+            if kind == "error":
+                messagebox.showerror("SSB could not save", value, parent=self.root)
+            else:
+                self.current_config = value
+                self.save_button.configure(text="Save Changes")
+                self._refresh_status()
+                messagebox.showinfo("SSB is ready", "The configuration was saved and the current blocking state was applied.", parent=self.root)
+            return
+        if self._busy:
+            self.root.after(75, self._poll_save)
 
     def _refresh_table(self) -> None:
         self.tree.delete(*self.tree.get_children())
@@ -881,6 +976,8 @@ class SSBWindow:
     def _save(self) -> None:
         from tkinter import messagebox
 
+        if self._busy:
+            return
         try:
             proposed = self._proposed_config()
         except (ValueError, TypeError) as exc:
@@ -906,15 +1003,12 @@ class SSBWindow:
             )
             if not messagebox.askyesno("Blocked-period confirmation", warning, icon="warning", parent=self.root):
                 return
+        self._set_busy(True)
         try:
-            install_or_update(proposed)
+            threading.Thread(target=self._save_worker, args=(proposed,), daemon=False).start()
         except Exception as exc:
-            messagebox.showerror("SSB could not save", str(exc), parent=self.root)
-            return
-        self.current_config = proposed
-        self.save_button.configure(text="Save Changes")
-        self._refresh_status()
-        messagebox.showinfo("SSB is ready", "The configuration was installed and the present state was reconciled.", parent=self.root)
+            self._events.put(("error", str(exc)))
+        self.root.after(75, self._poll_save)
 
     def _show_help(self) -> None:
         import tkinter as tk
@@ -933,6 +1027,8 @@ class SSBWindow:
     def _uninstall(self) -> None:
         from tkinter import messagebox
 
+        if self._busy:
+            return
         if not messagebox.askyesno(
             "Uninstall SSB",
             "Remove the scheduled task, firewall rules, browser-policy entries, settings, and logs?",
