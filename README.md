@@ -1,6 +1,6 @@
 # SSB — Simple Site Blocker
 
-![SSB banner](icons/ssbbanner.png)
+![SSB banner](icons/ssblogobanner.png)
 
 SSB (Simple Site Blocker) is a simple, locally run website blocker for Windows. Choose the websites and daily hours in a small graphical window; SSB then uses Windows' own scheduling, firewall, and browser-policy facilities to enforce them.
 
