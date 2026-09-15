@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.2 — 2026-09-14
+
+SSB v1.0.2 fixes Firefox website-policy numbering so Firefox accepts and enforces the blocked website list.
+
+### Changes
+
+- Firefox WebsiteFilter entries now begin at **1**, instead of **9000**. The previous numbering caused Firefox to reject Block as an object rather than the required array, leaving the browser policy inactive.
+- Empty Firefox Block/WebsiteFilter registry keys are removed when blocking is disabled, preventing the same schema error outside blocking hours.
+- Existing policy values are preserved. An unrelated malformed Firefox list produces a clear error instead of being overwritten. Chrome and Edge retain their existing numbering.
+- The quiet helper commands, responsive saving, and progress bar introduced in v1.0.1 are retained.
+
+### Firefox and VPNs
+
+The repaired WebsiteFilter is enforced inside Firefox rather than relying solely on DNS or Windows destination-address filtering. After applying the repair and restarting Firefox, the user confirmed that a blocked website **remained blocked with Firefox's built-in VPN enabled during blocking hours**. This validates that use case on the tested computer; it does not claim universal coverage for every VPN or proxy. No Firefox extension is installed or required by this fix.
+
+### Validation
+
+All **33 automated tests** passed on Windows with Python 3.11, including five new Firefox policy tests. The equivalent repair was also applied locally and the user confirmed that WebsiteFilter appeared under Active after restarting Firefox. Existing SSB configuration and DNS settings were preserved during that local repair.
+
+
 ## 1.0.1 — 2026-09-14
 
 SSB v1.0.1 makes saving website blocks quiet and keeps the window responsive while changes are applied.

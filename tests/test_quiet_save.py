@@ -174,7 +174,7 @@ class InstallRecoveryTests(unittest.TestCase):
                 self.assertEqual(mocks["create_task"].call_count, 2)
             else:
                 ssb.install_or_update(config, messages.append)
-                self.assertEqual(ssb.load_json(ssb.INSTALL_STATE_PATH, {})["app_version"], "1.0.1")
+                self.assertEqual(ssb.load_json(ssb.INSTALL_STATE_PATH, {})["app_version"], "1.0.2")
                 self.assertEqual(messages[-1], "Finishing...")
                 mocks["enforce"].assert_called_once()
                 mocks["remove_dynamic_keywords"].assert_called_once()

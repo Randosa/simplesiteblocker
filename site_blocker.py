@@ -40,7 +40,7 @@ import xml.etree.ElementTree as ET
 
 
 APP_NAME = "SSB (Simple Site Blocker)"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 TASK_NAME = r"\Simple Site Blocker\Reconcile"
 LEGACY_TASK_NAME = r"\Scheduled Site Blocker\Reconcile"
 FIREWALL_GROUP = "Simple Site Blocker"
@@ -433,27 +433,54 @@ def registry_restore(root, path: str, name: str, previous: dict) -> None:
         pass
 
 
+FIREFOX_BLOCK_PATH = r"SOFTWARE\Policies\Mozilla\Firefox\WebsiteFilter\Block"
+
+
+def policy_entry_start(path: str, existing_names: list[str]) -> int:
+    if path != FIREFOX_BLOCK_PATH:
+        return 9000
+    # Firefox identifies a registry array by the FIRST enumerated value being 1.
+    if existing_names and existing_names[0] != "1":
+        raise ValueError("An existing Firefox website list is not a valid array. Its first registry value must be named 1.")
+    return 1
+
+
+def prune_empty_firefox_policy_keys() -> None:
+    import winreg
+
+    for path in (FIREFOX_BLOCK_PATH, FIREFOX_BLOCK_PATH.rsplit("\\", 1)[0]):
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
+                children, values, _modified = winreg.QueryInfoKey(key)
+            if not children and not values:
+                winreg.DeleteKey(winreg.HKEY_LOCAL_MACHINE, path)
+        except FileNotFoundError:
+            pass
+
+
 def prepare_browser_policy_entries(config: dict) -> list[dict]:
     import winreg
 
     used_by_path: dict[str, set[str]] = {}
+    starts_by_path: dict[str, int] = {}
     entries: list[dict] = []
     for path, value in browser_policy_values(config):
         if path not in used_by_path:
-            names: set[str] = set()
+            names: list[str] = []
             try:
                 with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path) as key:
                     index = 0
                     while True:
                         try:
-                            names.add(winreg.EnumValue(key, index)[0])
+                            names.append(winreg.EnumValue(key, index)[0])
                             index += 1
                         except OSError:
                             break
             except FileNotFoundError:
                 pass
-            used_by_path[path] = names
-        number = 9000
+            starts_by_path[path] = policy_entry_start(path, names)
+            used_by_path[path] = set(names)
+        number = starts_by_path[path]
         while str(number) in used_by_path[path]:
             number += 1
         name = str(number)
@@ -477,6 +504,9 @@ def set_browser_policy_entries(enabled: bool, entries: list[dict] | None = None)
             registry_set(winreg.HKEY_LOCAL_MACHINE, item["path"], item["name"], item["value"], winreg.REG_SZ)
         else:
             registry_restore(winreg.HKEY_LOCAL_MACHINE, item["path"], item["name"], item["previous"])
+    if not enabled:
+        # Empty registry keys would otherwise become {} instead of an array.
+        prune_empty_firefox_policy_keys()
 
 
 def defender_network_protection() -> int | None:

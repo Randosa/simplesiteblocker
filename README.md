@@ -6,6 +6,24 @@ SSB (Simple Site Blocker) is a simple, locally run website blocker for Windows. 
 
 SSB has no account, cloud service, analytics, advertisements, or third-party Python packages. Its configuration and logs remain on the computer.
 
+## Version 1.0.2
+
+Firefox website blocking now loads correctly. SSB previously numbered Firefox's
+WebsiteFilter entries from 9000; Firefox requires the first entry to be named 1
+to recognize a list. Version 1.0.2 fixes that numbering and removes empty Firefox
+policy keys when blocking is disabled, preventing the related schema error.
+
+Firefox enforces the accepted WebsiteFilter policy inside the browser, without
+depending on the VPN using the computer's DNS. After restarting Firefox, the user
+confirmed that WebsiteFilter appeared under Active and that a blocked website
+remained blocked with Firefox's built-in VPN enabled during blocking hours.
+No browser extension is required. This check covers Firefox's built-in VPN on
+the tested computer, not every VPN, proxy, or browser.
+
+To upgrade, run the new script, review thy existing settings, select Save Changes,
+then close all Firefox windows and restart Firefox. Existing websites and hours
+are preserved. The quiet saving and progress bar from v1.0.1 remain included.
+
 ## Version 1.0.1
 
 Saving now runs in the background with a small animated progress bar and status
