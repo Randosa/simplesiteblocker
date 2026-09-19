@@ -10,9 +10,11 @@ import unittest
 from unittest.mock import patch
 
 
-SPEC = importlib.util.spec_from_file_location("ssb_quiet", Path(__file__).parents[1] / "site_blocker.py")
-ssb = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(ssb)
+import sys
+sys.path.insert(0, str(Path(__file__).parents[1]))
+from ssb import core as ssb
+from ssb.ui import SSBWindow
+ssb.SSBWindow = SSBWindow
 
 
 class QuietCommandTests(unittest.TestCase):
@@ -174,7 +176,7 @@ class InstallRecoveryTests(unittest.TestCase):
                 self.assertEqual(mocks["create_task"].call_count, 2)
             else:
                 ssb.install_or_update(config, messages.append)
-                self.assertEqual(ssb.load_json(ssb.INSTALL_STATE_PATH, {})["app_version"], "1.0.2")
+                self.assertEqual(ssb.load_json(ssb.INSTALL_STATE_PATH, {})["app_version"], ssb.APP_VERSION)
                 self.assertEqual(messages[-1], "Finishing...")
                 mocks["enforce"].assert_called_once()
                 mocks["remove_dynamic_keywords"].assert_called_once()

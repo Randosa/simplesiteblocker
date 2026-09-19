@@ -4,9 +4,11 @@ import unittest
 from unittest.mock import MagicMock, patch
 import winreg
 
-spec = importlib.util.spec_from_file_location("personal_ssb", Path(__file__).parents[1] / "site_blocker.py")
-ssb = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(ssb)
+import sys
+sys.path.insert(0, str(Path(__file__).parents[1]))
+from ssb import core as ssb
+from ssb.ui import SSBWindow
+ssb.SSBWindow = SSBWindow
 
 
 class FirefoxPolicyTests(unittest.TestCase):

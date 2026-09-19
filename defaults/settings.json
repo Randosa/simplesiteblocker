@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "sync_firefox": true,
+  "block_start": "21:00",
+  "block_end": "03:00",
+  "default_unlock_minutes": 30,
+  "maximum_unlock_minutes": 120
+}

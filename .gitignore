@@ -9,3 +9,15 @@ Thumbs.db
 config.json
 state.json
 install-state.json
+build/
+dist/
+release/
+vendor/
+*.spec
+version-info.txt
+icons/header.png
+icons/app-preview.png
+icons/ssb.ico
+.tools/
+*.key
+.venv/

@@ -2,125 +2,98 @@
 
 ![SSB banner](icons/ssblogobanner.png)
 
-SSB (Simple Site Blocker) is a simple, locally run website blocker for Windows. Choose the websites and daily hours in a small graphical window; SSB then uses Windows' own scheduling, firewall, and browser-policy facilities to enforce them.
+SSB blocks selected websites during daily hours on Windows. Version 1.2.0 is an
+installer-based revision built from the public **v1.0.2** tag. It retains that
+version's blocking engine and quiet background saving; the experimental
+allow-only/LAN feature is not included.
 
-SSB has no account, cloud service, analytics, advertisements, or third-party Python packages. Its configuration and logs remain on the computer.
+## Install and open
 
-## Version 1.0.2
+Run `SSB-Setup-1.2.0.exe`, approve the administrator prompt, and open **SSB — Simple
+Site Blocker** from Start or Windows search. The installer includes Python and
+all runtime dependencies; a separate Python installation is not required.
 
-Firefox website blocking now loads correctly. SSB previously numbered Firefox's
-WebsiteFilter entries from 9000; Firefox requires the first entry to be named 1
-to recognize a list. Version 1.0.2 fixes that numbering and removes empty Firefox
-policy keys when blocking is disabled, preventing the related schema error.
+Requirements: Windows 10/11 x64, administrator approval, and Microsoft Defender
+Network Protection for the Windows firewall FQDN layer. ARM64 is not validated.
 
-Firefox enforces the accepted WebsiteFilter policy inside the browser, without
-depending on the VPN using the computer's DNS. After restarting Firefox, the user
-confirmed that WebsiteFilter appeared under Active and that a blocked website
-remained blocked with Firefox's built-in VPN enabled during blocking hours.
-No browser extension is required. This check covers Firefox's built-in VPN on
-the tested computer, not every VPN, proxy, or browser.
+Setup installs in `C:\Program Files\SSB` and adds an Installed Apps entry.
+It registers the existing visible **Simple Site Blocker** scheduled task.
+The manager requests administrator access because saving changes updates Windows
+firewall and browser policies.
 
-To upgrade, run the new script, review thy existing settings, select Save Changes,
-then close all Firefox windows and restart Firefox. Existing websites and hours
-are preserved. The quiet saving and progress bar from v1.0.1 remain included.
+## Websites and settings
 
-## Version 1.0.1
+- `C:\Program Files\SSB\config\list.json` contains the website list.
+- `C:\Program Files\SSB\config\settings.json` contains hours and preferences.
+- `C:\Program Files\SSB\config\backup.json` contains the previous saved configuration.
+- `C:\Program Files\SSB\state` contains restoration and scheduling state.
+- `C:\Program Files\SSB\logs\ssb.log` records operations and errors.
 
-Saving now runs in the background with a small animated progress bar and status
-messages. Editing and closing are paused until the save finishes, preventing
-duplicate saves or interrupted updates. Errors appear inside SSB.
+Use the app to edit these files together. Saving uses a recoverable transaction
+and prevents concurrent writes. Setup and updates preserve existing configuration.
+Administrators and SYSTEM have access to mutable configuration and state.
 
-PowerShell and other helper commands run without console windows. Website rules
-are processed in batches, including large lists. The normal Windows administrator
-approval prompt still appears when needed. Saving from the installed copy is also
-supported.
+Choose **Sync changes to Firefox** to apply SSB's WebsiteFilter entries. Clearing
+it removes SSB's recorded Firefox entries while retaining Chrome/Edge blocking.
+No browser extension is installed. Firefox must be fully restarted to refresh
+enterprise policies, including when the blocking period ends. SSB does not claim
+that Firefox applies schedule changes immediately in an already-open browser.
 
-## Requirements
+In v1.0.2, the user confirmed blocking with Firefox's built-in VPN after restarting
+Firefox. This is not a guarantee for every browser, VPN, or proxy. The v1.0.2
+numbering fix and removal of empty Firefox policy keys remain included.
 
-- Windows 10 or Windows 11
-- Python 3.10 or newer from [python.org](https://www.python.org/downloads/windows/)
-- A Windows account able to approve administrator prompts
-- Microsoft Defender Antivirus and Network Protection for the firewall FQDN layer
+## Updates
 
-## Install
+**Check for Updates** opens WinSparkle's update interface. After the user chooses
+an available update, WinSparkle downloads it, checks its EdDSA signature, and runs
+the Inno Setup installer. A save in progress prevents update shutdown. Setup
+preserves websites, schedules, and the Firefox preference, then reapplies the
+current blocking state. Rerunning the installer repairs an installation.
 
-1. Download [`site_blocker.py`](site_blocker.py).
-2. Double-click it.
-3. Approve the Windows administrator prompt.
-4. Add each website thou wishest to block.
-5. For each website, choose whether all its subdomains shall also be included.
-6. Select the daily start and end times. Periods crossing midnight are supported.
-7. Review the exact configuration and select **Install SSB**.
+The update feed is hosted in this repository's `main` branch, with installers in
+GitHub Releases. EdDSA update verification is distinct from Windows Authenticode;
+this build does not carry an Authenticode publisher certificate.
 
-No separate installer or package manager is required. The program copies itself to `C:\ProgramData\CodexSiteBlocker` and registers a visible Windows scheduled task that runs briefly every five minutes, at startup and sign-in, and at the configured boundaries.
+## Migration and removal
 
-## Edit the configuration
+Setup can import recognized public v1.0.x settings from
+`C:\ProgramData\CodexSiteBlocker`, preserving a backup of the old configuration
+and restoration records. It does not execute the old Python script. Unsupported
+local variants must be uninstalled first so their additional network restrictions
+are restored; Setup stops before replacing files in that case.
 
-Double-click `site_blocker.py` again and approve the administrator prompt. The graphical manager loads the installed configuration and permits thee to:
+Remove SSB through Windows Installed Apps or **Uninstall SSB**. The uninstaller
+restores SSB's recorded browser settings, removes its tasks and firewall rules,
+and restores the prior Defender Network Protection setting. It offers to retain
+configuration for a later reinstall; silent uninstall retains it. If Windows
+cleanup fails, file removal stops so repair remains possible.
 
-- Add, update, or remove websites.
-- Include or exclude all subdomains for each site.
-- Change the daily blocking hours.
-- Repair the installed rules and scheduled task by saving again.
+## Limitations and privacy
 
-If a change is saved while the current time falls within either the existing or proposed blocked period, SSB displays an additional warning and requires a second confirmation. This makes an impulsive blocked-period edit more deliberate without falsely claiming that local administrator software is impossible to bypass.
+SSB provides deliberate friction. A local administrator can alter or remove it.
+VPNs, proxies, independent encrypted DNS, and unsupported browsers can evade
+Windows FQDN filtering. Shared destination IP addresses can affect other services.
+SSB does not disable encrypted DNS or collect browsing history. Manual update
+checks contact GitHub; configuration and logs remain on the computer.
 
-## Temporary access
-
-The graphical manager intentionally has no Unlock button. An administrator may grant a temporary exception from a terminal:
-
-```powershell
-python "C:\ProgramData\CodexSiteBlocker\site_blocker.py" unlock --minutes 30 --reason "Watch a particular lecture"
-```
-
-The exception expires automatically, cannot extend beyond the scheduled end time, and records its stated reason locally.
-
-
-## Remove SSB
-
-1. Double-click `site_blocker.py`.
-2. Approve the administrator prompt.
-3. Select **Uninstall SSB**.
-4. Confirm removal.
-
-SSB removes its scheduled task, firewall rules, browser-policy entries, configuration, log, and installed copy. It also restores the Microsoft Defender Network Protection setting it found before installation.
-
-Instructions are also embedded in the program. Open **Instructions** in the graphical manager or run:
+The task runs at startup/sign-in, at schedule boundaries, and every five minutes.
+An administrator can request temporary access with:
 
 ```powershell
-python site_blocker.py instructions
+& 'C:\Program Files\SSB\SSB.exe' unlock --minutes 30 --reason 'Specific purpose'
 ```
-
-## How blocking works
-
-SSB combines two local mechanisms:
-
-1. Windows Firewall dynamic FQDN rules provide the system-wide layer and support wildcard hostnames such as `*.example.com`.
-2. URL-blocking policies for Chrome, Edge, and Firefox provide a second browser layer.
-
-SSB does **not** disable encrypted DNS and does not hide itself from Task Manager or Windows administrative tools.
-
-## Limitations
-
-This is deliberate friction, not parental-control or endpoint-security software. A Windows administrator can change or remove it. VPNs, proxies, nonstandard browsers, cached addresses, and applications using independent encrypted DNS may evade Windows FQDN filtering. Firefox may require a restart before a newly changed enterprise URL policy is observed.
-
-Windows FQDN rules resolve names to destination IP addresses. A service that shares an IP address with a blocked domain may therefore be affected. Review the domain list before installation.
-
-## Privacy and security
-
-- No network requests are made by SSB itself.
-- No browsing history is collected.
-- Temporary-access reasons remain in the local log.
-- The installed directory is restricted to Administrators and SYSTEM.
-- The scheduled process is visible and plainly named **Simple Site Blocker**.
-- Existing numbered browser-policy values are preserved rather than overwritten.
 
 ## Development
 
-Run the standard-library test suite:
+Python remains suitable for this small Windows utility. The UI, storage,
+Windows lifecycle, and updater are separate modules under `ssb/`; Inno Setup
+owns file installation. See [BUILDING.md](BUILDING.md) for builds, signing, and
+release validation, and [CHANGELOG.md](CHANGELOG.md) for changes.
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-SSB is distributed under the MIT License.
+SSB is distributed under the MIT License. Bundled dependencies retain their
+own licenses; see `THIRD-PARTY-NOTICES.txt` and the installed runtime notices.

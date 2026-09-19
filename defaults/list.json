@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "sites": [
+    {
+      "hostname": "youtube.com",
+      "include_subdomains": true
+    },
+    {
+      "hostname": "youtu.be",
+      "include_subdomains": true
+    },
+    {
+      "hostname": "youtube-nocookie.com",
+      "include_subdomains": true
+    },
+    {
+      "hostname": "ytimg.com",
+      "include_subdomains": true
+    },
+    {
+      "hostname": "googlevideo.com",
+      "include_subdomains": true
+    },
+    {
+      "hostname": "instagram.com",
+      "include_subdomains": true
+    },
+    {
+      "hostname": "cdninstagram.com",
+      "include_subdomains": true
+    }
+  ]
+}

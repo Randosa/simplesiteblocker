@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 — 2026-09-19
+
+Based on the public v1.0.2 tag.
+
+- Add an Inno Setup installer for Program Files, Start menu/search, and Installed Apps.
+- Bundle Python so users no longer need to install it separately.
+- Store websites in config/list.json and preferences in config/settings.json;
+  preserve both across upgrades with atomic saves and recovery records.
+- Add manual WinSparkle updates with signature verification and installer handoff.
+- Add the supplied transparent header logo and rounded Windows application icon.
+- Remove the window subtitle and omit the experimental allow-only/LAN feature.
+- Add a saved Sync changes to Firefox checkbox and explain the restart requirement.
+- Retain v1.0.2 Firefox numbering/empty-key fixes and v1.0.1 quiet saving/progress.
+- Separate the UI, settings, updater, migration, and Windows integration modules.
+- Add build automation, packaging lifecycle tests, and release-signing tooling.
+
+
 ## 1.0.2 — 2026-09-14
 
 SSB v1.0.2 fixes Firefox website-policy numbering so Firefox accepts and enforces the blocked website list.
