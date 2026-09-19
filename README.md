@@ -52,8 +52,7 @@ preserves websites, schedules, and the Firefox preference, then reapplies the
 current blocking state. Rerunning the installer repairs an installation.
 
 The update feed is hosted in this repository's `main` branch, with installers in
-GitHub Releases. Until a tested installer release is published, the feed contains
-no update. EdDSA update verification is distinct from Windows Authenticode;
+GitHub Releases. EdDSA update verification is distinct from Windows Authenticode;
 this build does not carry an Authenticode publisher certificate.
 
 ## Migration and removal

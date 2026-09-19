@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 — installer revision (release candidate)
+## 1.2.0 — 2026-09-19
 
 Based on the public v1.0.2 tag.
 

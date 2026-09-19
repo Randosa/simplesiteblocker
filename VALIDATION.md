@@ -1,45 +1,61 @@
-# SSB 1.2.0 candidate validation — 2026-09-19
+# SSB 1.2.0 validation — 2026-09-19
 
 Base: public v1.0.2, commit `1fe80354ee31bf38d7e8c8a83e112a7b063e11c9`.
-Build host: Windows 10 Home x64; Python 3.11; PyInstaller 6.20.0;
+Build/test host: Windows 10 Home x64; Python 3.11; PyInstaller 6.20.0;
 Inno Setup 6.7.3; WinSparkle 0.9.4.
 
-## Passed
+## Automated and packaging checks
 
-- 49 automated tests: schedule boundaries, Firefox list format/cleanup, quiet
-  batched commands, responsive saving, opt-out persistence, configuration
-  transaction recovery, concurrent-write exclusion, migration, failed-update
-  recovery, updater shutdown callbacks, and queued-task behavior after uninstall.
-- Production PyInstaller bundle and Inno Setup installer compile successfully.
-- Packaged smoke test loads Tk, both icon resources, WinSparkle, and its public
-  key, and checks temporary configuration storage and Firefox opt-out.
-- Isolated Inno packaging test: fresh install, Start menu shortcut, Installed Apps
-  registration, upgrade to a higher installer version, exact preservation of
-  custom websites/hours/Firefox preference, executable launch without Python on
-  PATH, uninstall, removal of registrations, and retention of saved configuration.
-- EdDSA signature verification against the embedded public key succeeds for the
-  final installer and fails after a single byte is changed. Appcast length,
-  filename, and SHA-256 agree with the installer.
-- Git whitespace validation.
+- All 49 automated tests pass: schedule boundaries, Firefox list format/cleanup,
+  quiet batched commands, responsive saving, opt-out persistence, configuration
+  recovery, concurrent writes, migration, failure recovery, and updater callbacks.
+- Production executable and installer compile successfully.
+- Packaged smoke test loads Tk, icons, WinSparkle, and the public verification key.
+- Isolated packaging tests pass install, Start menu/Installed Apps registration,
+  upgrade, configuration preservation, runtime without Python on PATH, uninstall,
+  and retained configuration.
+- GitHub Windows CI independently passed unit, build, and packaging tests:
+  https://github.com/Randosa/simplesiteblocker/actions/runs/35461620296
+- The final installer's EdDSA signature verifies; changing one byte causes rejection.
+  Appcast length, filename, and SHA-256 agree with the installer.
 
-## Boundaries of this validation
+## Real administrator-level test
 
-The packaging test uses a separate app ID and replaces Windows integration hooks
-at compile time with a harmless packaged smoke test. Its higher installer version
-uses the same application bundle. It verifies Inno's file lifecycle, not a complete
-production WinSparkle upgrade or actual firewall/task changes.
+Performed on Windows 10 Home with no previous SSB installation, SSB firewall
+rules, or SSB scheduled task. The targeted browser block lists were initially
+empty; Defender Network Protection was initially Disabled.
 
-The existing local experimental SSB installation was not altered or used as source.
-Windows Sandbox is unavailable on this Windows 10 Home host. Full elevated
-installation, actual public-version migration, update download/install handoff,
-Firefox VPN behavior in this new package, and uninstall policy restoration still
-need a disposable Windows 10/11 integration test. The earlier v1.0.2 Firefox VPN
-result is retained as historical evidence, not a new test of this package.
+Passed:
 
-The native desktop screenshot tool failed with an unsupported capture-interface
-error. Icon artwork was inspected and Tk resource loading was verified, but a
-full visual window review remains outstanding.
+1. Fresh production installation into Program Files, Start menu shortcut,
+   Installed Apps registration, and packaged runtime smoke test.
+2. Actual SYSTEM task points at SSB.exe and completes with result zero.
+3. An all-day example.com test creates the real firewall rule and Firefox entries.
+4. Firefox opt-out removes its entries while retaining firewall blocking.
+5. Changing to hours outside the present time clears actual firewall/browser blocks.
+6. WinSparkle downloads the signed production installer, verifies it, launches it,
+   invokes the shutdown callback, and completes installation successfully.
+7. That upgrade preserves websites, schedule, and Firefox preference.
+8. Production uninstall removes executable, shortcut, task, and blocking rules;
+   restores browser values and the original Defender setting; retains configuration.
+9. Final production reinstall succeeds with the original default list and hours.
 
-The candidate is update-signed with EdDSA, not Authenticode publisher-signed.
-No stable release/feed item should be published until the remaining integration
-checks in BUILDING.md pass. The repository feed is intentionally empty meanwhile.
+The updater test used a loopback HTTP feed and a small host reporting version
+1.1.9, loading the installed WinSparkle DLL and public key. It downloaded the exact
+signed production 1.2.0 installer. This tests real download/verification/installer
+handoff, not an older released SSB application's user interface. The production
+feed and release assets use GitHub HTTPS. The test did not weaken signature checks.
+The script is provided as `tools/test_admin_install.py`; use only on a clean test
+machine, elevated, with the signed installer and generated release/appcast.xml.
+
+## Remaining coverage limits
+
+Public v1.0.x migration and failure recovery have automated coverage, but a live
+old-version migration was not performed in the administrator test. Firefox VPN
+blocking was confirmed by the user for v1.0.2; that engine is retained, but a new
+browser/VPN session was not independently exercised in this test. Firefox must be
+fully restarted to refresh policy changes, including the end of blocking hours.
+
+Native screenshot capture failed with an unsupported interface error. Icons were
+inspected and Tk resource loading was verified; full visual window review remains
+outstanding. The installer is EdDSA update-signed, not Authenticode publisher-signed.

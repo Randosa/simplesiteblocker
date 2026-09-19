@@ -66,6 +66,6 @@ the generated feed. Publishing the feed last avoids advertising a missing asset.
 Keep release notes explicit about Firefox's restart requirement and the validation
 actually performed. Do not label a candidate fully tested based only on unit tests.
 
-The initial feed intentionally has no items until the first installer release
-passes the remaining integration checks. Future versions must increase both
+Publish the signed feed only after the matching release asset is available.
+Future versions must increase both
 `ssb/core.py:APP_VERSION` and the installer/feed version.
