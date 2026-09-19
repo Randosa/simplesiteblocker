@@ -4,8 +4,7 @@
 
 SSB blocks selected websites during daily hours on Windows. Version 1.2.0 is an
 installer-based revision built from the public **v1.0.2** tag. It retains that
-version's blocking engine and quiet background saving; the experimental
-allow-only/LAN feature is not included.
+version's blocking engine and quiet background saving.
 
 ## Install and open
 
