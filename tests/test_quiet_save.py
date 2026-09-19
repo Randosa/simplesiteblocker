@@ -93,6 +93,42 @@ class SaveWindowTests(unittest.TestCase):
             time.sleep(0.01)
         self.assertTrue(predicate())
 
+    def test_indicator_reflects_saved_enforcement_state(self):
+        light = self.window.status_light
+        with patch.object(ssb, 'installation_complete', return_value=False):
+            self.window._refresh_status()
+            self.assertEqual(light.state, 'disabled')
+        with patch.object(ssb, 'installation_complete', return_value=True), \
+             patch.object(ssb, 'load_json', return_value={'blocked': False}):
+            self.window._refresh_status()
+            self.assertEqual(light.state, 'primed')
+            self.assertIsNone(light.tooltip)
+        with patch.object(ssb, 'installation_complete', return_value=True), \
+             patch.object(ssb, 'load_json', return_value={'blocked': True}):
+            self.window._refresh_status()
+            self.assertEqual(light.state, 'active')
+            self.assertIn('Blocking is active', self.window.status_var.get())
+
+    def test_hover_label_tracks_state_and_disappears_on_leave(self):
+        light = self.window.status_light
+        self.assertIsNone(light.tooltip)
+        light.set_state('primed')
+        light.show()
+        self.assertEqual(light.tooltip_label.cget('text'), 'Blocking primed')
+        light.set_state('active')
+        self.assertEqual(light.tooltip_label.cget('text'), 'Blocking active')
+        self.assertEqual(light.widget.itemcget(light.dot, 'fill'), '#238636')
+        light.hide()
+        self.assertIsNone(light.tooltip)
+
+    def test_clicking_light_invokes_refresh(self):
+        self.window.root.deiconify()
+        self.window.root.update()
+        with patch.object(self.window, '_refresh_status') as refresh:
+            self.window.status_light.widget.event_generate('<Button-1>')
+            self.window.root.update()
+            refresh.assert_called_once()
+
     def test_save_keeps_ui_alive_blocks_duplicates_and_restores_controls(self):
         release = threading.Event()
         started = threading.Event()

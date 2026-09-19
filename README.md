@@ -2,13 +2,13 @@
 
 ![SSB banner](icons/ssblogobanner.png)
 
-SSB blocks selected websites during daily hours on Windows. Version 1.2.0 is an
+SSB blocks selected websites during daily hours on Windows. Version 1.2.1 is an
 installer-based revision built from the public **v1.0.2** tag. It retains that
 version's blocking engine and quiet background saving.
 
 ## Install and open
 
-Run `SSB-Setup-1.2.0.exe`, approve the administrator prompt, and open **SSB — Simple
+Run `SSB-Setup-1.2.1.exe`, approve the administrator prompt, and open **SSB — Simple
 Site Blocker** from Start or Windows search. The installer includes Python and
 all runtime dependencies; a separate Python installation is not required.
 
@@ -21,6 +21,12 @@ The manager requests administrator access because saving changes updates Windows
 firewall and browser policies.
 
 ## Websites and settings
+
+The small light in the top-right corner shows the saved blocking state. Hover for
+its label: yellow **Blocking primed** (saved and waiting), green **Blocking active**,
+or red **Blocking disabled** (not configured/installed). Click it to refresh.
+It also refreshes automatically while the window is open. Unsaved edits do not
+change the saved blocking state.
 
 - `C:\Program Files\SSB\config\list.json` contains the website list.
 - `C:\Program Files\SSB\config\settings.json` contains hours and preferences.

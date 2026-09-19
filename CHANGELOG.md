@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1 — 2026-09-19
+
+- Add a small clickable status light in the top-right corner: yellow for Blocking
+  primed, green for Blocking active, and red for Blocking disabled.
+- Show the status light's text only on hover; clicking refreshes its status.
+- Refresh the window status automatically, without requiring a save or reopening.
+- Use the last applied blocking state for the active indication instead of
+  assuming that being inside scheduled hours means rules have already applied.
+
 ## 1.2.0 — 2026-09-19
 
 Based on the public v1.0.2 tag.

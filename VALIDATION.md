@@ -1,4 +1,18 @@
-# SSB 1.2.0 validation — 2026-09-19
+# SSB validation
+
+## Version 1.2.1 — 2026-09-19
+
+- All 57 automated tests passed, including status colors, hover label visibility,
+  click refresh, automatic refresh, and skipping reads during a save.
+- The signed 1.2.1 installer upgraded the real administrator-level installation
+  successfully, preserving both the website list and settings.
+- The installed 1.2.1 application passed its packaged runtime smoke test and was
+  opened after installation. Its status light uses the last applied state.
+- Signature verification passed; a one-byte modification was rejected.
+- The blocking engine and Windows integration are unchanged except for version
+  metadata; the administrator-level lifecycle coverage below still applies.
+
+## Version 1.2.0 — 2026-09-19
 
 Base: public v1.0.2, commit `1fe80354ee31bf38d7e8c8a83e112a7b063e11c9`.
 Build/test host: Windows 10 Home x64; Python 3.11; PyInstaller 6.20.0;

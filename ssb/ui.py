@@ -53,6 +53,9 @@ class SSBWindow:
         except self.tk.TclError:
             pass
         ttk.Label(heading, text="SSB", font=("Segoe UI Semibold", 26)).pack(side="left")
+        from .status_light import StatusLight
+        self.status_light = StatusLight(heading, self._refresh_status_clicked)
+        self.status_light.widget.pack(side="right", padx=(12, 0))
         ttk.Label(heading, text="v" + engine.APP_VERSION).pack(side="right")
         status = ttk.Label(outer, textvariable=self.status_var, padding=10, relief="solid", wraplength=720)
         status.pack(fill="x", pady=(0, 14))
@@ -180,12 +183,17 @@ class SSBWindow:
         end = engine.parse_clock(self.current_config["block_end"])
         state = engine.load_json(engine.STATE_PATH, {}) or {}
         exception = engine.active_exception(now, state)
-        if not engine.installation_complete():
+        installed = engine.installation_complete()
+        blocked = state.get('blocked') is True
+        self.status_light.set_state('disabled' if not installed else 'active' if blocked else 'primed')
+        if not installed:
             text = "Not installed. Review the website list and schedule, then select Install SSB."
+        elif blocked:
+            text = f"Blocking is active. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
         elif engine.in_block_window(now, start, end) and exception:
             text = f"Temporarily open until {exception.astimezone().strftime('%H:%M')}. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
         elif engine.in_block_window(now, start, end):
-            text = f"Blocking is active. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
+            text = f"Waiting for scheduled blocking. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
         else:
             text = f"SSB blocking is off. Firefox may need a restart. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
         self.status_var.set(text)
@@ -306,6 +314,25 @@ class SSBWindow:
             return
         self.root.after(100, self._poll_updater)
 
+    def _poll_status(self):
+        # Schedule boundaries and temporary exceptions can change while the
+        # manager remains open. Keep the label current without saving settings.
+        try:
+            if not self._busy:
+                self._refresh_status()
+        except (OSError, ValueError) as exc:
+            self.status_var.set(f"Status unavailable: {exc}")
+        finally:
+            self.root.after(1000, self._poll_status)
+
+    def _refresh_status_clicked(self):
+        if self._busy:
+            return
+        try:
+            self._refresh_status()
+        except (OSError, ValueError) as exc:
+            self.status_var.set(f"Status unavailable: {exc}")
+
     def _uninstall(self) -> None:
         from tkinter import messagebox
         try:
@@ -316,4 +343,5 @@ class SSBWindow:
 
     def run(self) -> None:
         self.root.after(100, self._poll_updater)
+        self.root.after(1000, self._poll_status)
         self.root.mainloop()
