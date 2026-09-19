@@ -1,0 +1,28 @@
+name: Windows build and packaging tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - run: python -m pip install -r build-requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/bootstrap.py
+      - run: python tools/build.py --winsparkle .tools/winsparkle/WinSparkle-0.9.4 --iscc .tools/InnoSetup/ISCC.exe
+      - run: python tools/test_installer.py --iscc .tools/InnoSetup/ISCC.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SSB-unsigned-release-candidate
+          path: release/SSB-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 14

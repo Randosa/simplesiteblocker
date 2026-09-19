@@ -5,10 +5,11 @@ import unittest
 import xml.etree.ElementTree as ET
 
 
-SCRIPT = Path(__file__).parents[1] / "site_blocker.py"
-SPEC = importlib.util.spec_from_file_location("site_blocker", SCRIPT)
-ssb = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(ssb)
+import sys
+sys.path.insert(0, str(Path(__file__).parents[1]))
+from ssb import core as ssb
+from ssb.ui import SSBWindow
+ssb.SSBWindow = SSBWindow
 
 
 class TimeTests(unittest.TestCase):

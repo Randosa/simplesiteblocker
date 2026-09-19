@@ -1,0 +1,12 @@
+SSB bundles Python, Tcl/Tk, PyInstaller's bootloader, and WinSparkle.
+
+Python license: https://docs.python.org/3/license.html
+Tcl/Tk license: https://www.tcl-lang.org/software/tcltk/license.html
+PyInstaller license and bootloader exception: https://pyinstaller.org/en/stable/license.html
+WinSparkle 0.9.4: https://github.com/vslavik/winsparkle/tree/v0.9.4
+WinSparkle's complete notices, including bundled dependencies, are shipped in
+_internal/vendor/COPYING and _internal/vendor/COPYING.expat.
+
+Python and Tk license texts are included in _internal/vendor.
+Pillow is a build tool and is not an application dependency.
+Original SSB artwork is included from the repository's v1.0.2 release.
