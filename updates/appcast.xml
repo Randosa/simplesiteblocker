@@ -1,7 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>SSB stable updates</title>
-    <description>No installer release has been published yet.</description>
+    <item>
+      <title>SSB 1.2.0</title>
+      <sparkle:version>1.2.0</sparkle:version>
+      <pubDate>Sat, 19 Sep 2026 18:29:59 +0000</pubDate>
+      <description>SSB installation and update improvements. Your saved website list and schedule are preserved.</description>
+      <enclosure url="https://github.com/Randosa/simplesiteblocker/releases/download/v1.2.0/SSB-Setup-1.2.0.exe" length="15677851" type="application/octet-stream" sparkle:edSignature="R8yO1AYsRiObcqUrbt4QrJRzxcSZN9d50cC7iKxcVm5G6dz3d2MJli5+bmfOPIgEspviPmtPPwZN5N3x1Q5fBw==" sparkle:os="windows-x64" sparkle:installerArguments="/SILENT /SP- /NORESTART" />
+    </item>
   </channel>
 </rss>
