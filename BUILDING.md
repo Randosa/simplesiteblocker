@@ -17,7 +17,7 @@ python -m venv .venv
 Bootstrap verifies pinned SHA-256 hashes before extracting WinSparkle 0.9.4 and
 installing Inno Setup 6.7.3 in `.tools`. The build compiles the supplied PNGs into
 Windows icon sizes, bundles the runtime and notices, and produces
-`release/SSB-Setup-1.2.0.exe`. Generated files are ignored by Git.
+`release/SSB-Setup-1.2.1.exe`. Generated files are ignored by Git.
 
 `tools/test_installer.py` compiles the same Inno script with a separate test app
 ID and no production integration hooks. It checks installation, Start menu and
@@ -40,7 +40,7 @@ each release. WinSparkle owns the key-file format; use its companion signing too
 After completing validation, sign the final, unmodified installer:
 
 ```powershell
-python tools/sign_release.py --key C:\secure\ssb-private.key --tool .tools/winsparkle/WinSparkle-0.9.4/bin/winsparkle-tool.exe --installer release/SSB-Setup-1.2.0.exe --version 1.2.0 --output release/appcast.xml
+python tools/sign_release.py --key C:\secure\ssb-private.key --tool .tools/winsparkle/WinSparkle-0.9.4/bin/winsparkle-tool.exe --installer release/SSB-Setup-1.2.1.exe --version 1.2.1 --output release/appcast.xml
 ```
 
 The script checks the signature against the embedded public key and writes a

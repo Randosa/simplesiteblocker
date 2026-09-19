@@ -22,7 +22,7 @@ sys.path.insert(0, str(SOURCE))
 from ssb import core as c, settings
 
 REPORT = {'started': dt.datetime.now().astimezone().isoformat(), 'checks': [], 'success': False}
-SETUP = SOURCE / 'release/SSB-Setup-1.2.0.exe'
+SETUP = SOURCE / f'release/SSB-Setup-{c.APP_VERSION}.exe'
 HOME = Path(r'C:\Program Files\SSB')
 EXE = HOME / 'SSB.exe'
 POLICIES = [r'SOFTWARE\Policies\Google\Chrome\URLBlocklist',
@@ -160,7 +160,7 @@ def main():
     shortcut = Path(os.environ['ProgramData']) / 'Microsoft/Windows/Start Menu/Programs/SSB — Simple Site Blocker.lnk'
     assert shortcut.exists()
     with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{504BBC0B-9861-49D0-A993-BD5D9AE73455}_is1') as key:
-        assert winreg.QueryValueEx(key, 'DisplayVersion')[0] == '1.2.0'
+        assert winreg.QueryValueEx(key, 'DisplayVersion')[0] == c.APP_VERSION
     task = c.run(['schtasks.exe', '/Query', '/TN', c.TASK_NAME, '/XML']).stdout
     (OUT / 'installed-task.xml').write_text(task, encoding='utf-8')
     assert str(EXE) in task and '<Arguments>enforce</Arguments>' in task
@@ -223,7 +223,7 @@ def main():
     assert c.load_config() == defaults
     passed('Final reinstall restores original default website list and schedule')
     REPORT['success'] = True
-    record('Administrator test passed; SSB 1.2.0 is installed with its original defaults')
+    record(f'Administrator test passed; SSB {c.APP_VERSION} is installed with its original defaults')
 
 
 try:
