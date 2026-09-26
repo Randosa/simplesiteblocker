@@ -43,7 +43,7 @@ def main():
     ET.SubElement(item, 'title').text = 'SSB ' + args.version
     ET.SubElement(item, f'{{{NS}}}version').text = args.version
     ET.SubElement(item, 'pubDate').text = format_datetime(datetime.now(timezone.utc))
-    ET.SubElement(item, 'description').text = 'SSB installation and update improvements. Your saved website list and schedule are preserved.'
+    ET.SubElement(item, 'description').text = 'Optional scheduled Internet cutoff. Your saved website list and settings are preserved.'
     ET.SubElement(item, 'enclosure', {
         'url': f'https://github.com/Randosa/simplesiteblocker/releases/download/v{args.version}/{args.installer.name}',
         'length': str(len(data)), 'type': 'application/octet-stream',

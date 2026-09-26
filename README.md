@@ -2,13 +2,13 @@
 
 ![SSB banner](icons/ssblogobanner.png)
 
-SSB blocks selected websites during daily hours on Windows. Version 1.2.1 is an
+SSB blocks selected websites during daily hours on Windows. Version 1.3.0 is an
 installer-based revision built from the public **v1.0.2** tag. It retains that
 version's blocking engine and quiet background saving.
 
 ## Install and open
 
-Run `SSB-Setup-1.2.1.exe`, approve the administrator prompt, and open **SSB — Simple
+Run `SSB-Setup-1.3.0.exe`, approve the administrator prompt, and open **SSB — Simple
 Site Blocker** from Start or Windows search. The installer includes Python and
 all runtime dependencies; a separate Python installation is not required.
 

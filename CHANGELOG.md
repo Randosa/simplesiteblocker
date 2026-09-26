@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0 — 2026-09-26
+
+- Add an optional daily Internet cutoff, with separate start and end times.
+- Block outbound traffic to Internet addresses during the chosen period using
+  a Windows firewall rule; local network destinations remain outside its scope.
+- Reconcile the cutoff at its exact schedule boundaries, at startup and sign-in,
+  and during the existing five-minute checks.
+- Let temporary unlocks suspend the cutoff, and remove its rule when disabled
+  or when SSB is uninstalled.
+- Preserve existing website lists and settings when upgrading. The new cutoff
+  is off by default.
+
+
 ## 1.2.1 — 2026-09-19
 
 - Add a small clickable status light in the top-right corner: yellow for Blocking

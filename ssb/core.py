@@ -39,7 +39,7 @@ import xml.etree.ElementTree as ET
 
 
 APP_NAME = "SSB (Simple Site Blocker)"
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.3.0"
 TASK_NAME = r"\Simple Site Blocker\Reconcile"
 LEGACY_TASK_NAME = r"\Scheduled Site Blocker\Reconcile"
 FIREWALL_GROUP = "Simple Site Blocker"

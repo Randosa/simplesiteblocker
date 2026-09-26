@@ -47,7 +47,7 @@ def main():
         artifacts.mkdir()
         uninstall = home / 'unins000.exe'
         try:
-            for version in ('1.2.0', '1.2.1'):
+            for version in ('1.2.1', '1.3.0'):
                 with (base / f'compile-{version}.log').open('w') as log:
                     run([args.iscc.resolve(), '/DPackagingTest', f'/DAppVersion={version}',
                          f'/O{artifacts}', ROOT / 'installer/ssb.iss'], stdout=log, stderr=subprocess.STDOUT)
@@ -57,7 +57,7 @@ def main():
                 assert shortcut.is_file(), 'Start menu shortcut missing'
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registry) as key:
                     assert winreg.QueryValueEx(key, 'DisplayVersion')[0] == version
-                if version == '1.2.0':
+                if version == '1.2.1':
                     listing = {'schema': 1, 'sites': [{'hostname': 'example.org', 'include_subdomains': False}]}
                     (home / 'config/list.json').write_text(json.dumps(listing), encoding='utf-8')
                     config = json.loads((home / 'config/settings.json').read_text())
