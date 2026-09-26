@@ -43,6 +43,7 @@ APP_VERSION = "1.2.1"
 TASK_NAME = r"\Simple Site Blocker\Reconcile"
 LEGACY_TASK_NAME = r"\Scheduled Site Blocker\Reconcile"
 FIREWALL_GROUP = "Simple Site Blocker"
+INTERNET_RULE_NAME = "SSB: Scheduled Internet cutoff"
 LEGACY_FIREWALL_GROUP = "Scheduled Site Blocker"
 from .paths import APP_DIR, resource
 from . import settings
@@ -60,6 +61,9 @@ DEFAULT_CONFIG = {
     "sync_firefox": True,
     "block_start": "21:00",
     "block_end": "03:00",
+    "internet_cutoff_enabled": False,
+    "internet_cutoff_start": "22:30",
+    "internet_cutoff_end": "06:00",
     "default_unlock_minutes": 30,
     "maximum_unlock_minutes": 120,
     "sites": [
@@ -85,6 +89,8 @@ HELP_TEXT = """SSB — Simple Site Blocker
 
 Open SSB from the Start menu and approve the administrator prompt.
 Edit the websites and daily hours, then select Save Changes.
+Enable Internet cutoff to block outbound Internet traffic between its chosen hours.
+It is off by default; local network traffic is outside this rule.
 Settings are stored in Program Files\\SSB\\config.
 
 Sync changes to Firefox applies website rules to Firefox. Disabling it removes
@@ -163,7 +169,14 @@ def requires_blocked_period_confirmation(
         parse_clock(new_config["block_start"]),
         parse_clock(new_config["block_end"]),
     )
-    return old_active or new_active
+    return old_active or new_active or internet_cutoff_active(now, old_config) or internet_cutoff_active(now, new_config)
+
+
+def internet_cutoff_active(now: dt.datetime, config: dict) -> bool:
+    return bool(config.get("internet_cutoff_enabled", False)) and in_block_window(
+        now, parse_clock(config.get("internet_cutoff_start", "22:30")),
+        parse_clock(config.get("internet_cutoff_end", "06:00")),
+    )
 
 
 def normalize_hostname(value: str) -> str:
@@ -268,6 +281,13 @@ def migrate_config(raw: dict | None) -> dict:
         raise ValueError("The installed configuration format is not recognized.")
     result["version"] = 1
     result.setdefault("sync_firefox", True)
+    result.setdefault("internet_cutoff_enabled", False)
+    result.setdefault("internet_cutoff_start", "22:30")
+    result.setdefault("internet_cutoff_end", "06:00")
+    if not isinstance(result["internet_cutoff_enabled"], bool):
+        raise ValueError("Internet cutoff must be enabled or disabled.")
+    parse_clock(result["internet_cutoff_start"])
+    parse_clock(result["internet_cutoff_end"])
     if not isinstance(result["sync_firefox"], bool):
         raise ValueError("Sync changes to Firefox must be enabled or disabled.")
     parse_clock(str(result.get("block_start", "")))
@@ -368,6 +388,19 @@ def create_firewall_rules(config: dict) -> None:
         scripts.append(script)
     if scripts:
         powershell("$ErrorActionPreference = 'Stop'\n" + "\n".join(scripts))
+
+
+def set_internet_cutoff(enabled: bool) -> None:
+    name = ps_quote(INTERNET_RULE_NAME)
+    group = ps_quote(FIREWALL_GROUP)
+    if enabled:
+        action = (f"if (-not $rule) {{ New-NetFirewallRule -DisplayName {name} -Group {group} "
+                  "-Action Block -Direction Outbound -RemoteAddress Internet -Profile Any "
+                  "-Enabled True -ErrorAction Stop | Out-Null }")
+    else:
+        action = "if ($rule) { $rule | Remove-NetFirewallRule -ErrorAction Stop }"
+    powershell("$ErrorActionPreference = 'Stop'\n"
+               + f"$rule = Get-NetFirewallRule -DisplayName {name} -ErrorAction SilentlyContinue; " + action)
 
 
 def firewall_rule_count() -> int | None:
@@ -538,17 +571,20 @@ def enforce(now: dt.datetime | None = None) -> dict:
     scheduled = in_block_window(now, start, end)
     exception_until = active_exception(now, state)
     blocked = scheduled and exception_until is None
+    internet_blocked = internet_cutoff_active(now, config) and exception_until is None
     set_blocking_enabled(blocked, config)
+    set_internet_cutoff(internet_blocked)
     if not exception_until:
         state.pop("unlock_until", None)
         state.pop("unlock_reason", None)
     state.update({
         "last_enforced": now.astimezone(dt.timezone.utc).isoformat(),
         "blocked": blocked,
+        "internet_blocked": internet_blocked,
     })
     save_json(STATE_PATH, state)
     logging.info("Enforced blocked=%s scheduled=%s exception_until=%s", blocked, scheduled, exception_until)
-    return {"blocked": blocked, "scheduled": scheduled, "exception_until": exception_until}
+    return {"blocked": blocked, "internet_blocked": internet_blocked, "scheduled": scheduled, "exception_until": exception_until}
 
 
 def unlock(minutes: int, reason: str) -> dt.datetime:
@@ -560,11 +596,20 @@ def unlock(minutes: int, reason: str) -> dt.datetime:
     now = dt.datetime.now().astimezone()
     start = parse_clock(config["block_start"])
     end = parse_clock(config["block_end"])
-    if not in_block_window(now, start, end):
+    site_active = in_block_window(now, start, end)
+    internet_active = internet_cutoff_active(now, config)
+    if not site_active and not internet_active:
         set_blocking_enabled(False, config)
+        set_internet_cutoff(False)
         logging.info("Unlock requested outside blocking hours. Reason=%s", reason)
         return now
-    expiry = min(now + dt.timedelta(minutes=minutes), next_block_end(now, start, end))
+    ends = []
+    if site_active:
+        ends.append(next_block_end(now, start, end))
+    if internet_active:
+        ends.append(next_block_end(now, parse_clock(config["internet_cutoff_start"]),
+                                   parse_clock(config["internet_cutoff_end"])))
+    expiry = min(now + dt.timedelta(minutes=minutes), max(ends))
     state = load_json(STATE_PATH, {}) or {}
     state.update({
         "unlock_until": expiry.astimezone(dt.timezone.utc).isoformat(),
@@ -574,6 +619,7 @@ def unlock(minutes: int, reason: str) -> dt.datetime:
     })
     save_json(STATE_PATH, state)
     set_blocking_enabled(False, config)
+    set_internet_cutoff(False)
     logging.warning("Temporary unlock until %s. Reason=%s", expiry.isoformat(), state["unlock_reason"])
     return expiry
 
@@ -586,6 +632,13 @@ def task_xml(pythonw: Path, config: dict) -> str:
     arguments = "enforce" if getattr(sys, "frozen", False) else xml_escape(subprocess.list2cmdline([str(Path(__file__).parents[1] / "site_blocker.py"), "enforce"]))
     start = parse_clock(config["block_start"]).strftime("%H:%M")
     end = parse_clock(config["block_end"]).strftime("%H:%M")
+    internet_triggers = ""
+    if config.get("internet_cutoff_enabled", False):
+        for boundary in ("internet_cutoff_start", "internet_cutoff_end"):
+            clock = parse_clock(config[boundary]).strftime("%H:%M")
+            internet_triggers += (f'<CalendarTrigger><StartBoundary>2020-01-01T{clock}:00</StartBoundary>'
+                                  '<Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval>'
+                                  '</ScheduleByDay></CalendarTrigger>\n    ')
     return f'''<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo><Description>Reconciles the locally configured Simple Site Blocker schedule.</Description></RegistrationInfo>
@@ -595,6 +648,7 @@ def task_xml(pythonw: Path, config: dict) -> str:
     <CalendarTrigger><StartBoundary>2020-01-01T00:00:00</StartBoundary><Enabled>true</Enabled><Repetition><Interval>PT5M</Interval><Duration>P1D</Duration><StopAtDurationEnd>false</StopAtDurationEnd></Repetition><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger>
     <CalendarTrigger><StartBoundary>2020-01-01T{start}:00</StartBoundary><Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger>
     <CalendarTrigger><StartBoundary>2020-01-01T{end}:00</StartBoundary><Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger>
+    {internet_triggers}
   </Triggers>
   <Principals><Principal id="Author"><UserId>S-1-5-18</UserId><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
   <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><AllowHardTerminate>true</AllowHardTerminate><StartWhenAvailable>true</StartWhenAvailable><RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable><IdleSettings><StopOnIdleEnd>false</StopOnIdleEnd><RestartOnIdle>false</RestartOnIdle></IdleSettings><AllowStartOnDemand>true</AllowStartOnDemand><Enabled>true</Enabled><Hidden>false</Hidden><RunOnlyIfIdle>false</RunOnlyIfIdle><WakeToRun>false</WakeToRun><ExecutionTimeLimit>PT2M</ExecutionTimeLimit><Priority>7</Priority></Settings>
@@ -668,6 +722,7 @@ def status_payload() -> dict:
         "schedule": f"{config['block_start']}-{config['block_end']}",
         "scheduled_block_window": in_block_window(now, start, end),
         "blocked": bool(state.get("blocked")),
+        "internet_blocked": bool(state.get("internet_blocked")),
         "firewall_rule_count": firewall_rule_count(),
         "temporary_unlock_until": exception.astimezone().isoformat() if exception else None,
         "sites": config["sites"],

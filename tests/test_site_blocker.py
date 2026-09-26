@@ -2,6 +2,7 @@ import datetime as dt
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 
 
@@ -53,6 +54,15 @@ class TimeTests(unittest.TestCase):
         config = {"block_start": "21:00", "block_end": "03:00"}
         now = dt.datetime(2026, 9, 13, 22, 0)
         self.assertFalse(ssb.requires_blocked_period_confirmation(now, config, config, False))
+
+    def test_internet_cutoff_crosses_midnight_and_defaults_off(self):
+        config = ssb.migrate_config(ssb.DEFAULT_CONFIG)
+        self.assertFalse(ssb.internet_cutoff_active(dt.datetime(2026, 9, 13, 23), config))
+        config["internet_cutoff_enabled"] = True
+        self.assertFalse(ssb.internet_cutoff_active(dt.datetime(2026, 9, 13, 22, 29), config))
+        self.assertTrue(ssb.internet_cutoff_active(dt.datetime(2026, 9, 13, 22, 30), config))
+        self.assertTrue(ssb.internet_cutoff_active(dt.datetime(2026, 9, 14, 5, 59), config))
+        self.assertFalse(ssb.internet_cutoff_active(dt.datetime(2026, 9, 14, 6), config))
 
 
 class HostnameTests(unittest.TestCase):
@@ -117,10 +127,22 @@ class ConfigurationTests(unittest.TestCase):
         ET.fromstring(xml)
         self.assertIn("T21:00:00", xml)
         self.assertIn("T03:00:00", xml)
+        config["internet_cutoff_enabled"] = True
+        xml = ssb.task_xml(Path(r"C:\Python\pythonw.exe"), config)
+        ET.fromstring(xml)
+        self.assertIn("T22:30:00", xml)
+        self.assertIn("T06:00:00", xml)
 
     def test_firewall_ids_are_stable_and_unique(self):
         self.assertEqual(ssb.keyword_id("example.com"), ssb.keyword_id("example.com"))
         self.assertNotEqual(ssb.keyword_id("example.com"), ssb.keyword_id("other.test"))
+
+    def test_internet_rule_is_scoped_to_internet_and_can_be_removed(self):
+        with mock.patch.object(ssb, "powershell") as shell:
+            ssb.set_internet_cutoff(True)
+            self.assertIn("-RemoteAddress Internet", shell.call_args.args[0])
+            ssb.set_internet_cutoff(False)
+            self.assertIn("Remove-NetFirewallRule", shell.call_args.args[0])
 
 
 if __name__ == "__main__":

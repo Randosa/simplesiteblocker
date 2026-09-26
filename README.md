@@ -38,6 +38,14 @@ Use the app to edit these files together. Saving uses a recoverable transaction
 and prevents concurrent writes. Setup and updates preserve existing configuration.
 Administrators and SYSTEM have access to mutable configuration and state.
 
+The optional **Internet cutoff** blocks outbound traffic to Internet addresses
+each day between its chosen start and end times (for example, 22:30–06:00).
+It is off by default. The Windows firewall rule leaves local network traffic
+outside its scope; the scheduled task applies and removes it at the boundaries.
+Temporary unlocks suspend the cutoff as well. Existing connections may take a
+moment to close, and a VPN or proxy can affect which destinations Windows
+classifies as Internet addresses.
+
 Choose **Sync changes to Firefox** to apply SSB's WebsiteFilter entries. Clearing
 it removes SSB's recorded Firefox entries while retaining Chrome/Edge blocking.
 No browser extension is installed. Firefox must be fully restarted to refresh

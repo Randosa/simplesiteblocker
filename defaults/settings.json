@@ -3,6 +3,9 @@
   "sync_firefox": true,
   "block_start": "21:00",
   "block_end": "03:00",
+  "internet_cutoff_enabled": false,
+  "internet_cutoff_start": "22:30",
+  "internet_cutoff_end": "06:00",
   "default_unlock_minutes": 30,
   "maximum_unlock_minutes": 120
 }

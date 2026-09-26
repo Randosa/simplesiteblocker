@@ -30,6 +30,9 @@ class SSBWindow:
         self.subdomains_var = tk.BooleanVar(value=True)
         self.start_var = tk.StringVar(value=self.current_config["block_start"])
         self.end_var = tk.StringVar(value=self.current_config["block_end"])
+        self.internet_var = tk.BooleanVar(value=self.current_config["internet_cutoff_enabled"])
+        self.internet_start_var = tk.StringVar(value=self.current_config["internet_cutoff_start"])
+        self.internet_end_var = tk.StringVar(value=self.current_config["internet_cutoff_end"])
         self.status_var = tk.StringVar()
         self.progress_var = tk.StringVar()
         self._busy = False
@@ -85,6 +88,14 @@ class SSBWindow:
         ttk.Label(schedule, text="until").pack(side="left")
         ttk.Combobox(schedule, textvariable=self.end_var, values=times, width=8).pack(side="left", padx=8)
         ttk.Label(schedule, text="(local system time; midnight crossover is supported)").pack(side="left", padx=8)
+
+        internet = ttk.LabelFrame(outer, text="Internet cutoff", padding=10)
+        internet.pack(fill="x", pady=(0, 12))
+        ttk.Checkbutton(internet, text="Block outbound Internet traffic daily", variable=self.internet_var).pack(side="left")
+        ttk.Label(internet, text="from").pack(side="left", padx=(12, 4))
+        ttk.Combobox(internet, textvariable=self.internet_start_var, values=times, width=7).pack(side="left")
+        ttk.Label(internet, text="until").pack(side="left", padx=(8, 4))
+        ttk.Combobox(internet, textvariable=self.internet_end_var, values=times, width=7).pack(side="left")
 
         firefox = ttk.Frame(outer)
         firefox.pack(fill="x", pady=(0, 12))
@@ -185,7 +196,8 @@ class SSBWindow:
         exception = engine.active_exception(now, state)
         installed = engine.installation_complete()
         blocked = state.get('blocked') is True
-        self.status_light.set_state('disabled' if not installed else 'active' if blocked else 'primed')
+        internet_blocked = state.get('internet_blocked') is True
+        self.status_light.set_state('disabled' if not installed else 'active' if blocked or internet_blocked else 'primed')
         if not installed:
             text = "Not installed. Review the website list and schedule, then select Install SSB."
         elif blocked:
@@ -196,7 +208,13 @@ class SSBWindow:
             text = f"Waiting for scheduled blocking. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
         else:
             text = f"SSB blocking is off. Firefox may need a restart. Scheduled period: {self.current_config['block_start']}–{self.current_config['block_end']}."
+        if internet_blocked and not blocked:
+            text = "Internet cutoff is active. Outbound Internet traffic is blocked."
         self.status_var.set(text)
+        if installed and self.current_config["internet_cutoff_enabled"]:
+            internet_state = "active" if internet_blocked else "waiting"
+            self.status_var.set(text + f" Internet cutoff {internet_state}: "
+                                f"{self.current_config['internet_cutoff_start']}–{self.current_config['internet_cutoff_end']}.")
 
     def _load_selected(self, _event=None) -> None:
         selected = self.tree.selection()
@@ -239,6 +257,9 @@ class SSBWindow:
             "version": 1,
             "block_start": self.start_var.get().strip(),
             "block_end": self.end_var.get().strip(),
+            "internet_cutoff_enabled": self.internet_var.get(),
+            "internet_cutoff_start": self.internet_start_var.get().strip(),
+            "internet_cutoff_end": self.internet_end_var.get().strip(),
             "default_unlock_minutes": self.current_config.get("default_unlock_minutes", 30),
             "maximum_unlock_minutes": self.current_config.get("maximum_unlock_minutes", 120),
             "sites": self.sites,
@@ -260,6 +281,9 @@ class SSBWindow:
             for site in proposed["sites"]
         )
         summary = f"Block daily from {proposed['block_start']} until {proposed['block_end']}:\n\n{site_lines}"
+        if proposed["internet_cutoff_enabled"]:
+            summary += (f"\n\nBlock outbound Internet traffic from {proposed['internet_cutoff_start']} "
+                        f"until {proposed['internet_cutoff_end']} each day.")
         if not messagebox.askyesno("Confirm SSB configuration", summary, parent=self.root):
             return
 

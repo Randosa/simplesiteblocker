@@ -61,6 +61,8 @@ def apply_configuration(config, progress=None):
                 if previous_state.get('blocked'):
                     c.set_browser_policy_entries(True, previous_entries)
                     c.create_firewall_rules(previous_config)
+                if previous_state.get('internet_blocked'):
+                    c.set_internet_cutoff(True)
             else:
                 c.delete_task(c.TASK_NAME)
                 c.restore_defender_network_protection(previous_network)
